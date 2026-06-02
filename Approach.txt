@@ -1,12 +1,11 @@
 Approach and System Architecture
 
-This solution prioritizes system reliability and robust spatial-temporal forecasting. Rather than relying on basic categorical encoding, the architecture treats the provided geohashes as the keystone spatial elements. By decoding these geohashes into precise latitude and longitude coordinates, the model maps exact physical distances and spatial proximity.
+This solution prioritizes system reliability and robust spatial-temporal forecasting using purely the provided competition data. 
 
 Key Engineering Highlights:
-1. Cyclical Time Encoding: Traffic operates in continuous 24-hour cycles. Time features were mapped using sine and cosine transformations to ensure the model understands the continuous flow of time.
-2. Advanced Ensemble Engine: A 5-Fold Cross-Validation strategy was utilized to train a blended ensemble of LightGBM and CatBoost Regressors, achieving a highly generalized architecture.
+1. Spatial Decoding: Rather than relying on basic categorical encoding, `pygeohash` was utilized to extract precise Latitude and Longitude coordinates from the provided geohashes, mapping exact physical distances.
+2. Cyclical Time Encoding: Traffic operates in continuous 24-hour cycles. Time features were mathematically mapped using sine and cosine transformations to ensure the tree-models understand the continuous flow of time (e.g., smoothly connecting 23:55 to 00:05).
+3. Advanced Ensemble Engine: A 5-Fold Cross-Validation strategy was utilized to train a blended ensemble of LightGBM and CatBoost Regressors. CatBoost handles the high-cardinality missing variables, while LightGBM minimizes error on the continuous spatial floats.
 
-Data Integrity & Leak Identification Note:
-During the exploratory phase, it was identified that this dataset is heavily derived from the 2019 Grab AI for SEA Traffic Management open-source dataset. While it is mathematically possible to achieve a 100% R2 score by performing a key intersection (geohash, day, timestamp) directly with the historical Kaggle data, I have strictly avoided using this external data leak to generate the final predictions. 
-
-The submitted predictions (achieving a highly robust ~91.5% R2 baseline) are generated entirely via the LightGBM/CatBoost machine learning ensemble using only the provided competition data, preserving the integrity of the evaluation metric.
+Data Integrity Note:
+During the exploratory phase, I identified that this dataset aligns with the 2019 Grab AI open-source dataset. While it is possible to achieve a near-perfect R2 score by performing a direct key-intersection with the historical Kaggle data, my team and I have strictly avoided using any external data to prevent data leakage. The submitted 91.56% predictions are generated entirely via our machine learning ensemble using only the provided `train.csv`, preserving the strict integrity of the evaluation metric.
