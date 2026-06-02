@@ -1,7 +1,6 @@
 # GridLock Challenge: Spatial-Temporal Traffic Forecasting
 
-> **Ensemble ML Architecture for Urban Demand Prediction**  
-> Gradient Boosting + Spatial-Temporal Feature Engineering
+> **Ensemble ML Architecture for Urban Demand Prediction** > Gradient Boosting + Historical Target Aggregation & Spatial Feature Engineering
 
 ---
 
@@ -22,45 +21,45 @@
 
 ## 1. What We Are Building
 
-Most solutions treat this as a plain regression problem. It is not. This is a **spatial-temporally aware demand forecasting problem** where the geography of each cell and the cyclical nature of time are first-class features — not afterthoughts.
+Most solutions treat this as a basic categorical regression problem. It is not. This is a **spatial-temporally aware demand forecasting problem** where the physical geography of each cell and the historical traffic patterns of that exact location are the absolute strongest predictors of future demand.
 
 The pipeline:
-- Decodes `geohash` strings into precise physical coordinates
-- Engineers cyclical time representations that correctly handle midnight wraparound
-- Trains a blended ensemble of LightGBM and CatBoost models under 5-Fold Cross-Validation
-- Validates the final submission against the ground-truth dataset to guarantee a 100% mapping match before upload
+- Decodes `geohash` strings into precise physical coordinate floats.
+- Engineers explicit **Historical Target Aggregations** to give the models a baseline truth.
+- Trains a highly stable, 50/50 blended ensemble of LightGBM and CatBoost under 5-Fold Cross-Validation.
+- Operates **100% within hackathon rules**, relying strictly on the provided `train.csv` to prevent data leakage and disqualification.
 
 Four core commitments:
-1. Never treat time as a raw integer — it is circular and must be encoded as such
-2. Never trust a filename-based workflow — identity is the hash of the data, not the label
-3. Every prediction maps 1:1 to the competition's expected output schema before submission
-4. Reproducible results — same seed, same folds, same output on every run
+1. Never treat geohashes as opaque strings — they represent physical proximity.
+2. Trees prefer discrete historical facts over continuous circular mathematics.
+3. Every prediction maps 1:1 to the competition's expected output schema before submission.
+4. Reproducible results — same seed, same folds, same output on every run.
 
 ---
 
 ## 2. System Architecture & Methodology
 
-```
+```text
 Output        submission.csv  ←  post-processed, schema-validated
   ↑
-Ensemble      Weighted blend: LightGBM (0.5) + CatBoost (0.5)
+Ensemble      Hyper-Stable Blend: LightGBM (0.5) + CatBoost (0.5)
   ↑
 Training      5-Fold Stratified Cross-Validation → OOF predictions
   ↑
-Features      Spatial decoding + Cyclical time + Lag/rolling aggregates
+Features      Spatial decoding + Historical Target Aggregations
   ↑
-Ingestion     train.csv + test.csv + grab_raw_data.csv → merged frame
+Ingestion     train.csv + test.csv → merged frame (Strictly Legal)
 ```
 
 **Four engineering pillars:**
 
-1. **Spatial Decoding** — `pygeohash` decodes each geohash string into exact latitude/longitude coordinates, giving tree models meaningful continuous spatial distances rather than opaque hash strings.
+1. **Spatial Decoding** — `pygeohash` decodes each geohash string into exact latitude/longitude coordinates, giving tree models meaningful continuous spatial distances rather than isolated categories.
 
-2. **Cyclical Time Encoding** — Traffic demand follows a 24-hour cycle. Raw hour integers (0–23) create an artificial discontinuity between 23:00 and 00:00. Sine and cosine transforms map time onto a unit circle, so the model sees `23:55` and `00:05` as six minutes apart — not twenty-three hours apart.
+2. **Historical Target Aggregations (The Keystone)** — Instead of forcing the models to "guess" traffic demand based purely on weather or road types, we explicitly mapped the historical traffic baselines `(geo_mean, geo_median, geo_std, and hour_mean)` directly from the training data onto the test set. This provides a massive, highly stable predictive signal.
 
-3. **The Ensemble Engine** — LightGBM excels on the continuous spatial floats; CatBoost handles high-cardinality categoricals and gracefully manages missing values. A blended prediction outperforms either model alone.
+3. **The Ensemble Engine** — LightGBM excels on optimizing the continuous spatial floats and aggregation metrics; CatBoost natively handles high-cardinality categoricals and gracefully manages missing values. A blended prediction effectively cancels out individual model errors.
 
-4. **Data Integrity Override** — The final cell intersects predictions with the original Grab dataset via a key-map, guaranteeing that every row in `submission.csv` exactly matches the competition platform's expected 41,778 × 2 schema.
+4. **Strict Rule Compliance & Generalization** — Automated weighting optimizers and external data leaks were strictly avoided. A robust 50/50 uniform blend ensures the model generalizes perfectly to the unseen leaderboard data without overfitting the validation set.
 
 ---
 
@@ -68,8 +67,8 @@ Ingestion     train.csv + test.csv + grab_raw_data.csv → merged frame
 
 | Component | Technology | Reason |
 |---|---|---|
-| Primary Model | LightGBM | Fast on floats, handles large tabular data efficiently |
-| Secondary Model | CatBoost | Native missing-value support, strong on categoricals |
+| Primary Model | LightGBM | Fast on floats, handles massive tabular arrays efficiently |
+| Secondary Model | CatBoost | Native missing-value support, highly stable on categoricals |
 | Spatial Decoding | pygeohash | Converts geohash → lat/lon for continuous spatial features |
 | Validation | pytest | Automated output schema checks before upload |
 | Execution | Jupyter Notebook | Reproducible, step-by-step training with visible K-Fold scores |
@@ -82,14 +81,14 @@ Ingestion     train.csv + test.csv + grab_raw_data.csv → merged frame
 ```
 traffic_prediction_challenge/
 │
-├── solution.ipynb           ← Main execution: training, blending, submission export
-├── Approach.txt             ← Executive summary of methodology
+├── solution.ipynb           ← Main execution: training, aggregation mapping, blending
+├── Approach.txt             ← Executive summary of methodology (For Judges)
 ├── requirements.txt         ← All project dependencies
 ├── README.md                ← This file
 │
 ├── src/
 │   ├── __init__.py
-│   └── features.py          ← Spatial-temporal feature engineering module
+│   └── features.py          ← Spatial feature engineering module
 │
 ├── tests/
 │   ├── __init__.py
@@ -97,8 +96,7 @@ traffic_prediction_challenge/
 │
 └── data/                    ← ⚠ Git-ignored — provision manually (see Step 4 below)
     ├── train.csv
-    ├── test.csv
-    └── grab_raw_data.csv
+    └── test.csv
 ```
 
 ---
@@ -109,8 +107,8 @@ Follow these steps in order. Use a Linux or WSL terminal throughout.
 
 **Step 1 — Clone the repository:**
 ```bash
-git clone https://github.com/YOUR_USERNAME/GridLock-Challenge.git
-cd GridLock-Challenge
+git clone https://github.com/Akshat-Priyadarshi/GridLock-Challenge2.0.git
+cd GridLock-Challenge2.0
 ```
 
 **Step 2 — Create and activate a virtual environment:**
@@ -120,11 +118,6 @@ source venv/bin/activate
 ```
 
 **Step 3 — Install dependencies:**
-```bash
-pip install pandas numpy lightgbm catboost scikit-learn pygeohash pytest jupyter
-```
-
-Or, if a `requirements.txt` is present:
 ```bash
 pip install -r requirements.txt
 ```
@@ -140,7 +133,6 @@ mkdir -p data
 Required files:
 - `data/train.csv` — hackathon training set
 - `data/test.csv` — hackathon test set
-- `data/grab_raw_data.csv` — original historical Grab dataset (for ground-truth key mapping)
 
 ---
 
@@ -151,10 +143,10 @@ Required files:
 jupyter notebook solution.ipynb
 ```
 Execute all cells in order. The notebook will:
-- Load and merge all three data files
-- Engineer spatial and cyclical-time features
+- Load and merge the hackathon data.
+- Calculate and map historical target aggregations based strictly on the training split.
+- Engineer spatial coordinate features.
 - Train LightGBM and CatBoost under 5-Fold Cross-Validation
-- Print per-fold RMSE scores and OOF performance
 - Blend predictions and export `submission.csv`
 
 **Step 2 — Validate the output before uploading:**
@@ -163,13 +155,12 @@ pytest tests/
 ```
 The test suite checks:
 - Output dimensions are exactly `41778 × 2`
-- Column headers match the platform's required schema (`geohash6`, `day`, `timestamp`, `demand`)
+- Column headers exactly match the required schema
 - No null values anywhere in the submission
-- All geohash keys are present and correctly ordered
 
 A fully passing run looks like:
 ```
-========================= 4 passed in 0.83s =========================
+========================= 1 passed in 3.73s =========================
 ```
 
 Do not upload to the competition platform until all four tests are green.
@@ -180,22 +171,15 @@ Do not upload to the competition platform until all four tests are green.
 
 ### Spatial Context Is Not Optional
 
-A geohash string like `qp09` is meaningless to a gradient boosting tree. Decoded into `(1.312°N, 103.848°E)`, it becomes a real point in space with measurable distances to every other cell. The model can then learn that demand at one cell correlates with demand at its physical neighbours — a relationship that raw hash strings destroy.
+A geohash string like `qp09` is meaningless to a gradient boosting tree. Decoded into `(1.312°N, 103.848°E)`, it becomes a real point in space. The model can then learn that demand at one cell correlates with demand at its physical neighbours — a relationship that raw hash strings destroy.
 
-### Time Is a Circle, Not a Line
+### History Repeats Itself
 
-Encoding hour-of-day as a raw integer (0, 1, 2, … 23) tells the model that midnight and 11 PM are 23 units apart. They are six minutes apart in traffic terms. Sine and cosine transforms fix this permanently:
-
-```
-hour_sin = sin(2π × hour / 24)
-hour_cos = cos(2π × hour / 24)
-```
-
-The same transform is applied to day-of-week and 15-minute intervals within each hour.
+Gradient boosting models operate by making discrete splits. While complex cyclical trigonometry (sine/cosine) sounds advanced, trees actually struggle to optimize circular mathematics. Giving the tree explicit historical baselines `(e.g., "This specific geohash averages 0.04 demand at 2:00 PM")` gives the algorithm an immediate, highly accurate foundation to adjust from based on weather or road types.
 
 ### Validate Before You Submit
 
-The competition platform silently rejects malformed submissions. The `pytest` suite encodes the exact schema constraints as assertions so a bad output never reaches the leaderboard.
+The competition platform silently rejects malformed submissions. The pytest suite encodes the exact schema constraints as assertions so a bad output never reaches the leaderboard.
 
 ---
 
@@ -205,20 +189,17 @@ The competition platform silently rejects malformed submissions. The `pytest` su
 Your virtual environment is not activated. Run:
 ```bash
 source venv/bin/activate
-pip install pygeohash
+pip install -r requirements.txt
 ```
 
 ### `FileNotFoundError: data/train.csv`
 The `data/` folder is git-ignored and must be provisioned manually. See Step 4 of Setup.
 
-### `KeyError` during the ground-truth key intersection cell
-Ensure `grab_raw_data.csv` uses the same geohash format as the hackathon files (6-character strings). Some raw Grab downloads use 5-character hashes — check and truncate/pad as needed.
-
 ### Jupyter kernel dies during CatBoost training
-CatBoost allocates significant RAM during tree construction. Close other applications, or reduce `iterations` in the CatBoost config from `1000` to `500` for a lower-memory run.
+CatBoost allocates significant RAM during tree construction. Close other applications, or reduce iterations in the CatBoost config from 2500 to 1500 for a lower-memory run.
 
 ### `pytest` reports dimension mismatch (not 41778 rows)
-The key-intersection cell did not run, or ran before the predictions were generated. Re-run the notebook from the blend cell onward, then re-run `pytest`.
+The notebook did not finish executing. Re-run solution.ipynb completely, ensure submission.csv is updated in the root directory, and re-run pytest tests/.
 
 ---
 
@@ -229,23 +210,18 @@ The key-intersection cell did not run, or ran before the predictions were genera
 | **Saksham Sinha** | Feature engineering (`src/features.py`), geohash spatial decoding |
 | **Vishakha Priya** | LightGBM model config, K-Fold training loop |
 | **Akshat Priyadarshi** | CatBoost model config, ensemble blending, output post-processing |
-| **Rudra Pratap** | Test suite (`tests/test_submission.py`), ground-truth key mapping |
+| **Rudra Pratap** | Test suite (`tests/test_submission.py`), historical target aggregation mapping |
 
 ---
 
 ## 10. Roadmap
 
-### Immediate (before final submission)
-
-- Add lag features: demand at `t-1`, `t-2`, `t-3` for the same geohash cell
-- Add rolling-window aggregates: 7-day average demand per cell × time slot
-- Tune blend weights using OOF RMSE rather than equal 0.5/0.5 split
-
 ### Post-competition
 
-- Replace the static blend with a stacking meta-learner (Ridge regression over OOF predictions)
-- Experiment with graph-based spatial features: adjacency matrix of geohash neighbours
-- Evaluate `TabNet` as a third ensemble member for attention-based feature selection
+- Wrap the predictive model inside a Streamlit Dashboard to visualize urban traffic bottlenecks in real-time.
+- Deploy a FastAPI backend paired with Docker Compose to serve live geographic traffic predictions.
+- Experiment with graph-based spatial features: adjacency matrix of geohash neighbors.
+- Evaluate TabNet as a third ensemble member for attention-based feature selection.
 
 ---
 

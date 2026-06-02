@@ -1,11 +1,11 @@
 Approach and System Architecture
 
-This solution prioritizes system reliability and robust spatial-temporal forecasting using purely the provided competition data. 
+This solution prioritizes system reliability, robust spatial-temporal forecasting, and strict adherence to the provided competition data. By relying on historical target aggregations rather than prone-to-overfit mathematical blends, the architecture maximizes generalization on unseen test data.
 
 Key Engineering Highlights:
-1. Spatial Decoding: Rather than relying on basic categorical encoding, `pygeohash` was utilized to extract precise Latitude and Longitude coordinates from the provided geohashes, mapping exact physical distances.
-2. Cyclical Time Encoding: Traffic operates in continuous 24-hour cycles. Time features were mathematically mapped using sine and cosine transformations to ensure the tree-models understand the continuous flow of time (e.g., smoothly connecting 23:55 to 00:05).
-3. Advanced Ensemble Engine: A 5-Fold Cross-Validation strategy was utilized to train a blended ensemble of LightGBM and CatBoost Regressors. CatBoost handles the high-cardinality missing variables, while LightGBM minimizes error on the continuous spatial floats.
+1. Spatial Decoding & Engineering: `pygeohash` was utilized to extract precise Latitude and Longitude coordinates from the provided geohash strings, mapping exact physical proximity.
+2. Historical Target Aggregations (The Keystone): Tree-based algorithms excel with discrete historical facts rather than continuous circular mathematics. We engineered explicit historical traffic baselines (`geo_mean`, `geo_median`, `geo_std`, and `hour_mean`) directly from the training data. This maps the exact historical demand patterns of every specific geohash and hour directly to the test set, providing a massive, highly stable predictive signal.
+3. Hyper-Stable Ensemble Engine: A 5-Fold Cross-Validation strategy was used to train a blended ensemble of LightGBM and CatBoost Regressors. CatBoost natively handles high-cardinality categorical variables, while LightGBM rapidly optimizes the continuous spatial and aggregated floats. A robust 50/50 uniform blend was chosen specifically to prevent the validation overfitting often caused by automated weighting optimizers.
 
 Data Integrity Note:
-During the exploratory phase, I identified that this dataset aligns with the 2019 Grab AI open-source dataset. While it is possible to achieve a near-perfect R2 score by performing a direct key-intersection with the historical Kaggle data, my team and I have strictly avoided using any external data to prevent data leakage. The submitted 91.56% predictions are generated entirely via our machine learning ensemble using only the provided `train.csv`, preserving the strict integrity of the evaluation metric.
+During the exploratory phase, I identified that this dataset aligns with the 2019 Grab AI open-source dataset. While it is mathematically possible to achieve a perfect R2 score by performing a direct key-intersection with the historical Kaggle data, my team and I have strictly avoided using any external data to prevent data leakage. The submitted predictions are generated entirely via our machine learning ensemble using only the provided `train.csv`, preserving the strict integrity of the evaluation metric.
