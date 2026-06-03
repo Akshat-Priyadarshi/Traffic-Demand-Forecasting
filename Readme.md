@@ -1,6 +1,6 @@
 # GridLock Challenge: Spatial-Temporal Traffic Forecasting
 
-> **Ensemble ML Architecture for Urban Demand Prediction** > Gradient Boosting + Historical Target Aggregation & Spatial Feature Engineering
+> **Ensemble ML Architecture for Urban Demand Prediction** > Gradient Boosting + Autoregressive Lags & Leak-Proof Target Encoding
 
 ---
 
@@ -21,19 +21,20 @@
 
 ## 1. What We Are Building
 
-Most solutions treat this as a basic categorical regression problem. It is not. This is a **spatial-temporally aware demand forecasting problem** where the physical geography of each cell and the historical traffic patterns of that exact location are the absolute strongest predictors of future demand.
+Most solutions treat this as a basic categorical regression problem. It is not. This is a **spatial-temporally aware demand forecasting problem**. Traffic demand is driven by physical geography, the cyclical nature of time, and autoregressive momentum (what happened yesterday at this exact time).
 
 The pipeline:
 - Decodes `geohash` strings into precise physical coordinate floats.
-- Engineers explicit **Historical Target Aggregations** to give the models a baseline truth.
+- Groups physical coordinates into spatial neighborhoods using K-Means Clustering.
+- Shifts historical data to create 24-hour and 7-day autoregressive lag features.
+- Applies strict Out-of-Fold (OOF) Target Encoding to establish historical demand baselines without target leakage.
 - Trains a highly stable, 50/50 blended ensemble of LightGBM and CatBoost under 5-Fold Cross-Validation.
-- Operates **100% within hackathon rules**, relying strictly on the provided `train.csv` to prevent data leakage and disqualification.
 
 Four core commitments:
 1. Never treat geohashes as opaque strings — they represent physical proximity.
-2. Trees prefer discrete historical facts over continuous circular mathematics.
-3. Every prediction maps 1:1 to the competition's expected output schema before submission.
-4. Reproducible results — same seed, same folds, same output on every run.
+2. Time is circular; it must be mapped continuously using trigonometry.
+3. Target leakage is fatal — all historical baselines must be encoded strictly Out-of-Fold.
+4. Every prediction maps 1:1 to the competition's expected output schema before submission.
 
 ---
 
@@ -46,20 +47,22 @@ Ensemble      Hyper-Stable Blend: LightGBM (0.5) + CatBoost (0.5)
   ↑
 Training      5-Fold Stratified Cross-Validation → OOF predictions
   ↑
-Features      Spatial decoding + Historical Target Aggregations
+Features      Lags + K-Means Zones + OOF Target Encoding + Cyclical Time
   ↑
 Ingestion     train.csv + test.csv → merged frame (Strictly Legal)
 ```
 
-**Four engineering pillars:**
+**Five engineering pillars:**
 
-1. **Spatial Decoding** — `pygeohash` decodes each geohash string into exact latitude/longitude coordinates, giving tree models meaningful continuous spatial distances rather than isolated categories.
+1. **Spatial Decoding** — `pygeohash` decodes strings into exact lat/lon coordinates. Sine and cosine transformations map 24-hour and 60-minute cycles onto a unit circle, ensuring the model understands that 23:55 and 00:05 are minutes apart, not hours.
 
-2. **Historical Target Aggregations (The Keystone)** — Instead of forcing the models to "guess" traffic demand based purely on weather or road types, we explicitly mapped the historical traffic baselines `(geo_mean, geo_median, geo_std, and hour_mean)` directly from the training data onto the test set. This provides a massive, highly stable predictive signal.
+2. **K-Means Spatial Zones** — Tree models struggle with diagonal boundaries. By running K-Means clustering on the coordinates, we group the map into 50 distinct "Traffic Zones," giving the trees a highly efficient geographic shortcut.
 
-3. **The Ensemble Engine** — LightGBM excels on optimizing the continuous spatial floats and aggregation metrics; CatBoost natively handles high-cardinality categoricals and gracefully manages missing values. A blended prediction effectively cancels out individual model errors.
+3. **Autoregressive Momentum (Lags)** — Traffic has memory. We engineered 24-hour and 7-day lag features, allowing the model to look at the exact demand for a specific location at this exact time yesterday and last week.
 
-4. **Strict Rule Compliance & Generalization** — Automated weighting optimizers and external data leaks were strictly avoided. A robust 50/50 uniform blend ensures the model generalizes perfectly to the unseen leaderboard data without overfitting the validation set.
+4. **Leak-Proof Target Encoding** — Instead of forcing the models to guess traffic baselines, we use Scikit-Learn's `TargetEncoder` inside the K-Fold loop. This gives the model explicit historical demand averages for every geohash without leaking the validation answers.
+
+5. **The Ensemble Engine** — LightGBM excels on optimizing the continuous spatial floats and aggregation metrics; CatBoost natively handles high-cardinality categoricals and gracefully manages missing values. A uniform 50/50 blend effectively cancels out individual algorithm variance.
 
 ---
 
@@ -69,6 +72,7 @@ Ingestion     train.csv + test.csv → merged frame (Strictly Legal)
 |---|---|---|
 | Primary Model | LightGBM | Fast on floats, handles massive tabular arrays efficiently |
 | Secondary Model | CatBoost | Native missing-value support, highly stable on categoricals |
+| Clustering & CV | scikit-learn | K-Means spatial zones and leak-proof OOF Target Encoding |
 | Spatial Decoding | pygeohash | Converts geohash → lat/lon for continuous spatial features |
 | Validation | pytest | Automated output schema checks before upload |
 | Execution | Jupyter Notebook | Reproducible, step-by-step training with visible K-Fold scores |
@@ -143,9 +147,9 @@ Required files:
 jupyter notebook solution.ipynb
 ```
 Execute all cells in order. The notebook will:
-- Load and merge the hackathon data.
-- Calculate and map historical target aggregations based strictly on the training split.
-- Engineer spatial coordinate features.
+- Load the data and engineer the 24h/7d autoregressive lags.
+- Apply K-Means spatial zones and cyclical time features.
+- Execute strict Out-of-Fold Target Encoding to capture historical baselines.
 - Train LightGBM and CatBoost under 5-Fold Cross-Validation
 - Blend predictions and export `submission.csv`
 
@@ -160,7 +164,7 @@ The test suite checks:
 
 A fully passing run looks like:
 ```
-========================= 1 passed in 3.73s =========================
+========================= 1 passed in 8.15s =========================
 ```
 
 Do not upload to the competition platform until all four tests are green.
@@ -169,17 +173,17 @@ Do not upload to the competition platform until all four tests are green.
 
 ## 7. Design Philosophy
 
-### Spatial Context Is Not Optional
+### Traffic Has Momentum
 
-A geohash string like `qp09` is meaningless to a gradient boosting tree. Decoded into `(1.312°N, 103.848°E)`, it becomes a real point in space. The model can then learn that demand at one cell correlates with demand at its physical neighbours — a relationship that raw hash strings destroy.
+A model cannot accurately predict a sudden 3:00 PM surge if it doesn't know what happened at 3:00 PM yesterday. Shifting the data to create explicit lag features allows the tree models to adjust their baseline predictions dynamically based on recent momentum.
 
-### History Repeats Itself
+### Target Leakage is the Enemy
 
-Gradient boosting models operate by making discrete splits. While complex cyclical trigonometry (sine/cosine) sounds advanced, trees actually struggle to optimize circular mathematics. Giving the tree explicit historical baselines `(e.g., "This specific geohash averages 0.04 demand at 2:00 PM")` gives the algorithm an immediate, highly accurate foundation to adjust from based on weather or road types.
+It is easy to achieve a false 99% accuracy on a validation set by improperly aggregating global target variables. By aggressively restricting our Target Encoders to operate exclusively inside the K-Fold split boundaries, we guarantee that our validation scores reflect reality and will generalize perfectly to unseen data.
 
 ### Validate Before You Submit
 
-The competition platform silently rejects malformed submissions. The pytest suite encodes the exact schema constraints as assertions so a bad output never reaches the leaderboard.
+The competition platform silently rejects malformed submissions. The `pytest` suite encodes the exact schema constraints as assertions so a bad output never reaches the leaderboard.
 
 ---
 
@@ -199,7 +203,7 @@ The `data/` folder is git-ignored and must be provisioned manually. See Step 4 o
 CatBoost allocates significant RAM during tree construction. Close other applications, or reduce iterations in the CatBoost config from 2500 to 1500 for a lower-memory run.
 
 ### `pytest` reports dimension mismatch (not 41778 rows)
-The notebook did not finish executing. Re-run solution.ipynb completely, ensure submission.csv is updated in the root directory, and re-run pytest tests/.
+The notebook did not finish executing. Re-run `solution.ipynb` completely, ensure `submission.csv` is updated in the root directory, and re-run `pytest tests/`.
 
 ---
 
@@ -207,10 +211,10 @@ The notebook did not finish executing. Re-run solution.ipynb completely, ensure 
 
 | Member | Responsibility |
 |---|---|
-| **Saksham Sinha** | Feature engineering (`src/features.py`), geohash spatial decoding |
+| **Saksham Sinha** | Feature engineering (`src/features.py`), cyclical mapping |
 | **Vishakha Priya** | LightGBM model config, K-Fold training loop |
-| **Akshat Priyadarshi** | CatBoost model config, ensemble blending, output post-processing |
-| **Rudra Pratap** | Test suite (`tests/test_submission.py`), historical target aggregation mapping |
+| **Akshat Priyadarshi** | CatBoost model config, spatial decoding & K-Means clusteringg |
+| **Rudra Pratap** | Out-of-Fold Target Encoding, Autoregressive lag logic |
 
 ---
 
@@ -220,8 +224,7 @@ The notebook did not finish executing. Re-run solution.ipynb completely, ensure 
 
 - Wrap the predictive model inside a Streamlit Dashboard to visualize urban traffic bottlenecks in real-time.
 - Deploy a FastAPI backend paired with Docker Compose to serve live geographic traffic predictions.
-- Experiment with graph-based spatial features: adjacency matrix of geohash neighbors.
-- Evaluate TabNet as a third ensemble member for attention-based feature selection.
+- Experiment with graph-based neural networks (GNNs) using adjacency matrices of geohash neighbors for a third ensemble member.
 
 ---
 
