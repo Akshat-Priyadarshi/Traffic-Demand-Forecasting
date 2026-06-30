@@ -111,8 +111,8 @@ Follow these steps in order. Use a Linux or WSL terminal throughout.
 
 **Step 1 — Clone the repository:**
 ```bash
-git clone https://github.com/Akshat-Priyadarshi/GridLock-Challenge2.0.git
-cd GridLock-Challenge2.0
+git clone https://github.com/Akshat-Priyadarshi/Traffic-Demand-Forecasting.git
+cd Traffic-Demand-Forevcasting
 ```
 
 **Step 2 — Create and activate a virtual environment:**
