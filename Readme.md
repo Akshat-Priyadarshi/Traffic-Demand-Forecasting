@@ -1,4 +1,4 @@
-# GridLock Challenge: Spatial-Temporal Traffic Forecasting
+# Spatial-Temporal Traffic Forecasting
 
 > **Ensemble ML Architecture for Urban Demand Prediction** > Gradient Boosting + Autoregressive Lags & Leak-Proof Target Encoding
 
